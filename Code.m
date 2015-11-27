@@ -37,6 +37,7 @@ if isempty(cropDown)
 end
     im = Im(cropUp:cropDown,:,i);
     im = mat2gray(im);
+    im = adapthisteq(im); %Contrast enhancement
     ed = edge(im);
     bw = imfill(ed,'holes');
     bw = bwareaopen(bw,800);
