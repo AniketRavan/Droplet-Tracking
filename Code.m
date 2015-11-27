@@ -28,7 +28,7 @@ for i = 1:size(Im,3)
     end
     im = Im(cropUp:cropDown,:,i);
     im = mat2gray(im);
-    im = adapthisteq(im);
+    im = adapthisteq(im); %Enhance contrast
     ed = edge(im);
     bw = imfill(ed,'holes');
     bw = bwareaopen(bw,800);
