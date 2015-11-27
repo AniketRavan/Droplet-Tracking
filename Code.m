@@ -8,7 +8,7 @@ for idx = 1:length(FileName)
     v.FrameRate = 5;
     open(v);
     clear Im
-    vid=VideoReader([address,FileName{idx}]);
+    vid=VideoReader([address,FileName{idx}]); %video object
     numFrames = vid.NumberOfFrames;
     n=numFrames;
     crop = 180; 
