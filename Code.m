@@ -8,10 +8,11 @@ for idx = 1:length(FileName)
     v.FrameRate = 5;
     open(v);
     clear Im
-    vid=VideoReader([address,FileName{idx}]);
+    vid=VideoReader([address,FileName{idx}]); %video object
     numFrames = vid.NumberOfFrames;
     n=numFrames;
-    crop = 180; 
+    cropUp = 180; 
+    cropDown = [];
 for i = 1:5:n
     Im(:,:,(i - 1)/5 + 1) = read(vid,i);
 end
@@ -22,8 +23,12 @@ flag = 0;
 for i = 1:size(Im,3)
 %     im = imread([address,FileName{i}]);
 %     im = rgb2gray(im);
-    im = Im(crop:size(Im,1),:,i);
+    if (isempty(cropDown))
+        cropDown = size(Im,1);
+    end
+    im = Im(cropUp:cropDown,:,i);
     im = mat2gray(im);
+    im = adapthisteq(im);
     ed = edge(im);
     bw = imfill(ed,'holes');
     bw = bwareaopen(bw,800);
