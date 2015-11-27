@@ -1,4 +1,7 @@
 [FileName,address] = uigetfile('MultiSelect','on');
+if ischar(FileName)
+    FileName = {FileName};
+end
 for idx = 1:length(FileName)
     clear v
     v = VideoWriter([address,FileName{idx},'Tracked.avi']);
@@ -28,7 +31,7 @@ for i = 1:size(Im,3)
     %a = regionprops(bw,'Area');
     edg = bwperim(bw);
     %overlap = double(edg) + im;
-    stats = regionprops(bw,'Centroid','MajorAxisLength','MinorAxisLength');
+    stats = regionprops(bw,'Centroid','MajorAxisLength','MinorAxisLength','Area');
     if (size(stats,1) ~= 0)
         CNew = stats.Centroid;
         if (flag == 1)
@@ -37,9 +40,10 @@ for i = 1:size(Im,3)
             speed(i) = dist(i)/fps;
         end
         COld = CNew;
-        majax(i) = stats.MajorAxisLength;
-        minax(i) = stats.MinorAxisLength;
-        delta(i) = (majax - minax)/(majax + minax);
+        majax(i) = stats.MajorAxisLength*scale;
+        minax(i) = stats.MinorAxisLength*scale;
+        delta(i) = (majax(i) - minax(i))/(majax(i) + minax(i));
+        area(i) = stats.Area*scale^2;
         flag = 1;
         im = im + double(edg);
         im = mat2gray(im);
@@ -60,6 +64,9 @@ xlswrite([address,'data'],{'Delta'},FileName{idx},'C1:C1');
 xlswrite([address,'data'],delta',FileName{idx},'C2');
 xlswrite([address,'data'],{'Speed'},FileName{idx},'D1:D1');
 xlswrite([address,'data'],speed',FileName{idx},'D2');
+xlswrite([address,'data'],{'Area'},FileName{idx},'E1:E1');
+xlswrite([address,'data'],area',FileName{idx},'E2');
+
 %%%%%%%%%%%%
 
 %%%%%%%%%%%%
