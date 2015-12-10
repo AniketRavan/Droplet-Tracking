@@ -22,7 +22,7 @@ function varargout = DropletGUI(varargin)
 
 % Edit the above text to modify the response to help DropletGUI
 
-% Last Modified by GUIDE v2.5 10-Dec-2015 08:38:49
+% Last Modified by GUIDE v2.5 10-Dec-2015 12:08:27
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -297,10 +297,6 @@ function checkbox1_Callback(hObject, eventdata, handles) %Crop
 
 % Hint: get(hObject,'Value') returns toggle state of checkbox1
 global Crop
-global cropUp
-global cropDown
-global cropLeft
-global cropRight
 Crop = hObject.Value;
 
 
@@ -446,7 +442,7 @@ for i = 1:size(Im,3)
             end
             refSort = sort(ref);
             if (i ~= 1 && exist('top'))
-                if (min(ref) > top)
+                if (min(ref) > top )
                     passed = passed + 1;
                 end
             end
@@ -478,7 +474,7 @@ for i = 1:size(Im,3)
                 delta{p + passed} = [delta{p + passed},Delta(p)];
                 majax{p + passed} = [majax{p + passed},Majax(p)];
                 minax{p + passed} = [minax{p + passed},Minax(p)];
-                X{p + passed} = [X{p + passed},size(im,1) - CNew(p,2)];
+                X{p + passed} = [X{p + passed},(size(im,1) - CNew(p,2))*scale];
             end
             end
         end
@@ -493,11 +489,13 @@ for i = 1:size(Im,3)
     %%%%%%%%%%%
     
 end
-data(idx).area = Area;
-data(idx).delta = delta;
-data(idx).majax = majax;
-data(idx).minax = minax;
-data(idx).X = X;
+if (isempty(Area) == 0)
+data(idx).area = Area(~cellfun('isempty',Area));
+data(idx).delta = delta(~cellfun('isempty',delta));
+data(idx).majax = majax(~cellfun('isempty',delta));
+data(idx).minax = minax(~cellfun('isempty',minax));
+data(idx).X = X(~cellfun('isempty',X));
+end
 %%%%%%%%%%%% Fitting
 
 %%%%%%%%%%%%
@@ -636,11 +634,15 @@ axes(handles.axes4);
 plot(X(1:length(delta)),delta,'.'); xlabel('X'); ylabel('Deformation');
 axes(handles.axes5);
 plot(z2(1:length(z1)),z1,'.');
+coeff = polyfit(z2(1:length(z1)),z1,1);
+slope = coeff(1);
+set(handles.text16,'String',['Slope = ',num(slope)]);
 datafit.area = data(NVideo).area{Ndrop};
 datafit.minax = Mix;
 datafit.majax = Max;
 datafit.X = Xf;
 datafit.epsilonDot = epsilonf;
+
 
 
 % --- Executes on button press in pushbutton8.
@@ -660,8 +662,11 @@ function edit6_Callback(hObject, eventdata, handles) %Ndrop
 %        str2double(get(hObject,'String')) returns contents of edit6 as a double
 global Ndrop
 global data
+global NVideo
+if (isempty(NVideo) == 1)
+    NVideo = 1;
+end
 Ndrop = str2num(hObject.String);
-set(handles.text11,'String',['(',length(data(1).X),')']);
 
 
 % --- Executes during object creation, after setting all properties.
@@ -684,7 +689,9 @@ function edit7_Callback(hObject, eventdata, handles) %NVideo
 % Hints: get(hObject,'String') returns contents of edit7 as text
 %        str2double(get(hObject,'String')) returns contents of edit7 as a double
 global NVideo
+global data
 NVideo = str2num(hObject.String);
+set(handles.text11,'String',int2str(length(data(NVideo).X)));
 
 % --- Executes during object creation, after setting all properties.
 function edit7_CreateFcn(hObject, eventdata, handles)
@@ -990,3 +997,10 @@ function edit17_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+% --- Executes during object creation, after setting all properties.
+function text16_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to text16 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
