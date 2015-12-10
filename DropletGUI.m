@@ -363,7 +363,6 @@ global data
 global Crop
 global angle
 global se se1 Size
-global minax
 for idx = 1:length(FileName)
     h = msgbox(['Processing Video File ',int2str(idx),' of ',int2str(length(FileName))]);
     drawnow
@@ -575,7 +574,8 @@ majax = data(NVideo).majax{Ndrop};
 axes(handles.axes6);
 plot(1:length(majax),majax,'.');
 if (isempty(p2) == 0)
-    Max = csaps(1:length(majax), majax, p2, 1:length(majax));
+    p = polyfit(1:length(majax), majax, p2);
+    Max = polyval(p,1:length(majax));
     axes(handles.axes6);
     hold on 
     plot(1:length(majax),Max);
@@ -585,7 +585,8 @@ minax = data(NVideo).minax{Ndrop};
 axes(handles.axes7);
 plot(1:length(minax),minax,'.');
 if (isempty(p3) == 0)
-    Mix = csaps(1:length(minax), minax, p3, 1:length(minax));
+    p = polyfit(1:length(minax), minax, p3);
+    Mix = polyval(p,1:length(minax));
     axes(handles.axes7);
     hold on 
     plot(1:length(minax),Mix);
@@ -596,7 +597,8 @@ XX = (1:length(X))/fps;
 axes(handles.axes2);
 plot(X,XX,'.'); xlabel('X'); ylabel('Time');
 if (isempty(p1) == 0)
-    Xf = csaps(XX, X, p1, XX);
+    p = polyfit(XX,X,p1);
+    Xf = polyval(p,XX);
     axes(handles.axes2);
     hold on 
     plot(Xf,XX);
@@ -612,7 +614,8 @@ delta = (Max - Mix)./(Max + Mix);
 axes(handles.axes8);
 plot(Xf(1:length(speed)),speed,'.');
 if (isempty(p4) == 0)
-    speedf = csaps(Xf(1:length(speed)), speed, p4, Xf(1:length(speed)));
+    p = polyfit(Xf(1:length(speed)), speed, p4);
+    speedf = polyval(p,Xf(1:length(speed)));
     axes(handles.axes8);
     hold on 
     plot(Xf(1:length(speedf)),speedf);
@@ -621,7 +624,8 @@ end
 axes(handles.axes3);
 plot(X(1:length(epsilonDot)),epsilonDot,'.'); xlabel('X'); ylabel('epsilonDot');
 if (isempty(p5) == 0)
-    epsilonf = csaps(Xf(1:length(epsilonDot)), epsilonDot, p5, Xf(1:length(epsilonDot)));
+    p = polyfit(Xf(1:length(epsilonDot)), epsilonDot, p5);
+    epsilonf = polyval(p,Xf(1:length(epsilonDot)));
     axes(handles.axes3)
     hold on 
     plot(Xf(1:length(epsilonDot)),epsilonf);
@@ -636,7 +640,7 @@ axes(handles.axes5);
 plot(z2(1:length(z1)),z1,'.');
 coeff = polyfit(z2(1:length(z1)),z1,1);
 slope = coeff(1);
-set(handles.text16,'String',['Slope = ',num(slope)]);
+set(handles.text16,'String',['Slope = ',num2str(slope)]);
 datafit.area = data(NVideo).area{Ndrop};
 datafit.minax = Mix;
 datafit.majax = Max;
@@ -935,7 +939,7 @@ function edit15_Callback(hObject, eventdata, handles) %Dilation
 % Hints: get(hObject,'String') returns contents of edit15 as text
 %        str2double(get(hObject,'String')) returns contents of edit15 as a double
 global se
-se = str2num(hObject.String);
+se = strel('disk',str2num(hObject.String));
 
 
 % --- Executes during object creation, after setting all properties.
@@ -960,7 +964,7 @@ function edit16_Callback(hObject, eventdata, handles) %Opening
 % Hints: get(hObject,'String') returns contents of edit16 as text
 %        str2double(get(hObject,'String')) returns contents of edit16 as a double
 global se1
-se1 = str2num(hObject.String);
+se1 = strel('disk',str2num(hObject.String));
 
 % --- Executes during object creation, after setting all properties.
 function edit16_CreateFcn(hObject, eventdata, handles)
