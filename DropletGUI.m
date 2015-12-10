@@ -633,10 +633,13 @@ end
 axes(handles.axes4);
 plot(X(1:length(delta)),delta,'.'); xlabel('X'); ylabel('Deformation');
 axes(handles.axes5);
-plot(z2(1:length(z1)),z1,'.');
 coeff = polyfit(z2(1:length(z1)),z1,1);
 slope = coeff(1);
-set(handles.text16,'String',['Slope = ',num(slope)]);
+plot(z2(1:length(z1)),z1,'.');
+hold on 
+plot(z2(1:length(z1)),polyval(coeff,z2(1:length(z1))));
+hold off
+set(handles.text16,'String',['Slope = ',num2str(slope)]);
 datafit.area = data(NVideo).area{Ndrop};
 datafit.minax = Mix;
 datafit.majax = Max;
