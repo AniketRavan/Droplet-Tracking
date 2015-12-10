@@ -1,5 +1,6 @@
 global fps 
 global scale
+global Tracked
 [FileName,address] = uigetfile('MultiSelect','on');
 if ischar(FileName)
     FileName = {FileName};

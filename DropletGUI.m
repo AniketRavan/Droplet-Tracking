@@ -22,7 +22,7 @@ function varargout = DropletGUI(varargin)
 
 % Edit the above text to modify the response to help DropletGUI
 
-% Last Modified by GUIDE v2.5 09-Dec-2015 17:26:31
+% Last Modified by GUIDE v2.5 10-Dec-2015 08:38:49
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -78,16 +78,10 @@ function pushbutton1_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-global FileName
-global address
+global FileName address
 global idx %Index of video file
 global i %Index of frame in (idx)th video file
-global angle
-global cropLeft
-global cropRight
-global cropUp
-global cropDown
-global Crop
+global angle cropLeft cropRight cropUp cropDown Crop
 [FileName,address] = uigetfile('MultiSelect','on');
 if ischar(FileName)
     FileName = {FileName};
@@ -213,7 +207,7 @@ if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColo
 end
 
 
-
+%Angle
 function edit1_Callback(hObject, eventdata, handles)
 % hObject    handle to edit1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -256,7 +250,7 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-% --- Executes on button press in pushbutton2.
+% --- Executes on button press in pushbutton2. cropLeft
 function pushbutton5_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton2 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -266,8 +260,8 @@ axes(handles.axes1);
 [x,y] = ginput(1);
 cropLeft = round(x);
 
-% --- Executes on button press in pushbutton3.
-function pushbutton4_Callback(hObject, eventdata, handles)
+% --- Executes on button press in pushbutton3. cropUp
+function pushbutton4_Callback(hObject, eventdata, handles) 
 % hObject    handle to pushbutton3 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -277,7 +271,7 @@ axes(handles.axes1);
 cropRight = round(x);
 
 % --- Executes on button press in pushbutton4.
-function pushbutton3_Callback(hObject, eventdata, handles)
+function pushbutton3_Callback(hObject, eventdata, handles) %cropUp
 % hObject    handle to pushbutton4 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -286,7 +280,7 @@ global cropUp
 cropUp = round(y);
 
 % --- Executes on button press in pushbutton5.
-function pushbutton2_Callback(hObject, eventdata, handles)
+function pushbutton2_Callback(hObject, eventdata, handles) %cropDown
 % hObject    handle to pushbutton5 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -296,7 +290,7 @@ cropDown = y;
 
 
 % --- Executes on button press in checkbox1.
-function checkbox1_Callback(hObject, eventdata, handles)
+function checkbox1_Callback(hObject, eventdata, handles) %Crop
 % hObject    handle to checkbox1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -311,7 +305,7 @@ Crop = hObject.Value;
 
 
 
-function edit2_Callback(hObject, eventdata, handles)
+function edit2_Callback(hObject, eventdata, handles) %Scale
 % hObject    handle to edit2 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -335,7 +329,7 @@ end
 
 
 
-function edit3_Callback(hObject, eventdata, handles)
+function edit3_Callback(hObject, eventdata, handles) %Frame Rate
 % hObject    handle to edit3 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -359,6 +353,7 @@ end
 
 
 % --- Executes on button press in pushbutton6. Initiate Sequence Button
+% (Main Tracking Code)
 function pushbutton6_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton6 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -367,13 +362,12 @@ global FileName
 global address
 global scale
 global fps
-global cropUp
-global cropDown
-global cropLeft
-global cropRight
+global cropUp cropDown cropLeft cropRight
 global data
 global Crop
 global angle
+global se se1 Size
+global minax
 for idx = 1:length(FileName)
     h = msgbox(['Processing Video File ',int2str(idx),' of ',int2str(length(FileName))]);
     drawnow
@@ -385,9 +379,9 @@ for idx = 1:length(FileName)
     minax = {[]};
     X = {[]};
     clear v
-    %v = VideoWriter([address,FileName{idx},'Tracked.avi']);
-    %v.FrameRate = 5;
-    %open(v);
+    v = VideoWriter([address,FileName{idx},'Tracked.avi']);
+    v.FrameRate = 5;
+    open(v);
     clear Im
     vid=VideoReader([address,FileName{idx}]); %Video object
     numFrames = vid.NumberOfFrames;
@@ -418,13 +412,20 @@ for i = 1:size(Im,3)
         im = im(cropUp:cropDown,cropLeft:cropRight);
     end
     ed = edge(im);
-    se = strel('disk',1);
-    se1 = strel('disk',5);
+    if (isempty(se) == 1)
+        se = strel('disk',1);
+    end
+    if (isempty(se1) == 1)
+        se1 = strel('disk',5);
+    end
     ed = imdilate(ed,se);
     bw = imfill(ed,'holes');
     bw = imerode(bw,se);
     bw = imclearborder(bw);
-    bw = bwareaopen(bw,1500);
+    if (isempty(Size) == 1)
+        Size = 2000;
+    end
+    bw = bwareaopen(bw,Size);
     bw = imopen(bw,se1);
     bw = imclearborder(bw);
     %a = regionprops(bw,'Area');
@@ -444,7 +445,7 @@ for i = 1:size(Im,3)
             ref(z) = stats(z).Centroid(2);
             end
             refSort = sort(ref);
-            if (i ~= 1)
+            if (i ~= 1 && exist('top'))
                 if (min(ref) > top)
                     passed = passed + 1;
                 end
@@ -455,7 +456,7 @@ for i = 1:size(Im,3)
             end
         CNew = [];
         for p = 1:size(stats,1)
-            %im = insertMarker(im,[stats(ascInd(p)).Centroid(1),stats(ascInd(p)).Centroid(2)],'Color',color(mod((p+passed),5)+1),'size',10);
+            im = insertMarker(im,[stats(ascInd(p)).Centroid(1),stats(ascInd(p)).Centroid(2)],'Color',color(mod((p+passed),5)+1),'size',10);
             CNew(p,:) = stats(ascInd(p)).Centroid;
             A(p) = stats(ascInd(p)).Area*scale^2;
             Majax(p) = stats(ascInd(p)).MajorAxisLength*scale;
@@ -486,7 +487,7 @@ for i = 1:size(Im,3)
         im = mat2gray(im);
         else flag = 0; COld = [];
         end
-       %writeVideo(v,im);
+        writeVideo(v,im);
     %%%%%%%%%%%
     
     %%%%%%%%%%%
@@ -500,14 +501,14 @@ data(idx).X = X;
 %%%%%%%%%%%% Fitting
 
 %%%%%%%%%%%%
-%close(v);
+close(v);
 close(h);
 end
 set(handles.text10,'String',['(',int2str(length(FileName)),')']);
 set(handles.text11,'String',['(',int2str(length(data(1).X)),')']);
 
 
-function edit4_Callback(hObject, eventdata, handles)
+function edit4_Callback(hObject, eventdata, handles) %Matrix Viscosity
 % hObject    handle to edit4 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -531,7 +532,7 @@ end
 
 
 
-function edit5_Callback(hObject, eventdata, handles)
+function edit5_Callback(hObject, eventdata, handles) %Droplet Viscosity
 % hObject    handle to edit5 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -555,17 +556,15 @@ end
 
 
 % --- Executes on button press in pushbutton7.
-function pushbutton7_Callback(hObject, eventdata, handles)
+function pushbutton7_Callback(hObject, eventdata, handles) %Fitting
 % hObject    handle to pushbutton7 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-global fps
-global data
-global Ndrop
-global viscC
-global viscD
-global NVideo
+global fps scale
+global data datafit
+global Ndrop NVideo
+global viscC viscD
 global p1 p2 p3 p4 p5
 visc = [viscD,viscC];
 if (isempty(Ndrop) == 1)
@@ -630,10 +629,18 @@ if (isempty(p5) == 0)
     plot(Xf(1:length(epsilonDot)),epsilonf);
     hold off
 end
+if (isempty(p5) == 1)
+    epsilonf = epsilonDot;
+end
 axes(handles.axes4);
 plot(X(1:length(delta)),delta,'.'); xlabel('X'); ylabel('Deformation');
 axes(handles.axes5);
 plot(z2(1:length(z1)),z1,'.');
+datafit.area = data(NVideo).area{Ndrop};
+datafit.minax = Mix;
+datafit.majax = Max;
+datafit.X = Xf;
+datafit.epsilonDot = epsilonf;
 
 
 % --- Executes on button press in pushbutton8.
@@ -644,7 +651,7 @@ function pushbutton8_Callback(hObject, eventdata, handles)
 
 
 
-function edit6_Callback(hObject, eventdata, handles)
+function edit6_Callback(hObject, eventdata, handles) %Ndrop
 % hObject    handle to edit6 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -654,7 +661,7 @@ function edit6_Callback(hObject, eventdata, handles)
 global Ndrop
 global data
 Ndrop = str2num(hObject.String);
-set(handles.text9,'String',['(',length(data(1).X),')']);
+set(handles.text11,'String',['(',length(data(1).X),')']);
 
 
 % --- Executes during object creation, after setting all properties.
@@ -669,7 +676,7 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-function edit7_Callback(hObject, eventdata, handles)
+function edit7_Callback(hObject, eventdata, handles) %NVideo
 % hObject    handle to edit7 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -707,7 +714,7 @@ function text11_CreateFcn(hObject, eventdata, handles)
 
 
 
-function edit8_Callback(hObject, eventdata, handles)
+function edit8_Callback(hObject, eventdata, handles) %p1
 % hObject    handle to edit8 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -733,7 +740,7 @@ end
 
 
 
-function edit9_Callback(hObject, eventdata, handles)
+function edit9_Callback(hObject, eventdata, handles) %p2
 % hObject    handle to edit9 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -757,7 +764,7 @@ end
 
 
 
-function edit10_Callback(hObject, eventdata, handles)
+function edit10_Callback(hObject, eventdata, handles) %p3
 % hObject    handle to edit10 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -818,6 +825,163 @@ p5 = str2num(hObject.String);
 % --- Executes during object creation, after setting all properties.
 function edit12_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to edit12 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in pushbutton9. Export to excel
+function pushbutton9_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton9 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global datafit
+global address
+global Ndrop NVideo
+if (isepmpty(Ndrop) == 1)
+    Ndrop = 1;
+end
+if (isempty(NVideo) == 1)
+    NVideo = 1;
+end
+%%% Messagebox
+if (isempty(datafit) == 0)
+    a = datafit.area;
+    min = datafit.minax;
+    maj = datafit.minax;
+    X = datafit.X;
+    xlswrite([address,'Data.xls'],a,A:A);
+    xlswrite([address,'Data.xls'],min,B:B);
+    xlswrite([address,'Data.xls'],maj,C:C);
+    xlswrite([address,'Data.xls'],X,D:D);
+else msgbox('Please process your data before exporting');
+end
+
+
+% --- Executes on button press in pushbutton10. %Play Video button
+function pushbutton10_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton10 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global address
+global NVideo
+global FileName
+if (isempty(NVideo) == 1)
+    NVideo = 1;
+end
+implay([address,FileName{NVideo},'Tracked.avi']);
+
+
+% --- Executes on button press in pushbutton11. Display binary image
+function pushbutton11_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton11 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global address FileName
+global idx i 
+global angle
+global im
+global Crop cropUp cropDown cropLeft cropRight se se1 Size
+    vid=VideoReader([address,FileName{idx}]); %Video object
+    img = read(vid,i);
+    if (isempty(angle) == 0)
+        img = imrotate(img,angle);
+    end
+    axes(handles.axes9);
+    if (Crop == 1)
+        img = img(cropUp:cropDown,cropLeft:cropRight);
+    end
+    im = img;
+    clear img
+    im = mat2gray(im);
+    ed = edge(im);
+    if (isempty(se) == 1)
+        se = strel('disk',1);
+    end
+    if (isempty(se1) == 1)
+        se1 = strel('disk',5);
+    end
+    ed = imdilate(ed,se);
+    bw = imfill(ed,'holes');
+    bw = imerode(bw,se);
+    bw = imclearborder(bw);
+    if (isempty(Size) == 1)
+        Size = 2000;
+    end
+    bw = bwareaopen(bw,Size);
+    bw = imopen(bw,se1);
+    bw = imclearborder(bw);
+    imshow(bw);
+
+
+
+function edit15_Callback(hObject, eventdata, handles) %Dilation
+% hObject    handle to edit15 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit15 as text
+%        str2double(get(hObject,'String')) returns contents of edit15 as a double
+global se
+se = str2num(hObject.String);
+
+
+% --- Executes during object creation, after setting all properties.
+function edit15_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit15 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function edit16_Callback(hObject, eventdata, handles) %Opening
+% hObject    handle to edit16 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit16 as text
+%        str2double(get(hObject,'String')) returns contents of edit16 as a double
+global se1
+se1 = str2num(hObject.String);
+
+% --- Executes during object creation, after setting all properties.
+function edit16_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit16 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function edit17_Callback(hObject, eventdata, handles) %Size
+% hObject    handle to edit17 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit17 as text
+%        str2double(get(hObject,'String')) returns contents of edit17 as a double
+global Size
+Size = str2num(hObject.String);
+
+% --- Executes during object creation, after setting all properties.
+function edit17_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit17 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 

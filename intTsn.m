@@ -10,6 +10,8 @@ speed = diff(X)*fps;
 dSpeed = diff(speed);
 %dSpeed = sgolayfilt(dSpeed,5,51);
 dX = diff(X);
+length(dX)
+length(dSpeed)
 epsilonDot = dSpeed./dX(1:length(dX) - 1);
 a0 = (vMajax.*vMinax.^2).^(1/3);
 z1 = alpha*visc(2)*(5/(2*viscRat + 3)*epsilonDot - dDelta(1:length(epsilonDot))*fps);
