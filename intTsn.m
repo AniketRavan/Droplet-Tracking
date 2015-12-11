@@ -20,6 +20,6 @@ if (isempty(p5) == 0)
     else epsilonDo = dSpeed./dX(1:length(dX) - 1);
         epsilonDot = dSpeed./dX(1:length(dX) - 1);
 end
-a0 = (vMajax.*vMinax.^2).^(1/3)*1e-3;
+a0 = (vMajax.*vMinax.^2).^(1/3)*1e-3/2;
 z1 = alpha*visc(2)*(5/(2*viscRat + 3)*epsilonDo - dDelta(1:length(epsilonDo))*fps);
 z2 = (vDelta(1:length(vDelta)-1)./a0(1:length(a0) - 1));

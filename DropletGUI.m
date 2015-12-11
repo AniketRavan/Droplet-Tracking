@@ -22,7 +22,7 @@ function varargout = DropletGUI(varargin)
 
 % Edit the above text to modify the response to help DropletGUI
 
-% Last Modified by GUIDE v2.5 10-Dec-2015 12:08:27
+% Last Modified by GUIDE v2.5 11-Dec-2015 07:29:22
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -559,7 +559,7 @@ function pushbutton7_Callback(hObject, eventdata, handles) %Fitting
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-global fps scale
+global fps scale xlimit lengthx
 global data datafit
 global Ndrop NVideo
 global viscC viscD
@@ -571,73 +571,80 @@ end
 if (isempty(NVideo) == 1)
     NVideo = 1;
 end
+X = data(NVideo).X{Ndrop};
+lengthx = length(X);
+XX = (1:length(X))/fps;
+if (isempty(xlimit) == 1 || xlimit > length(X) - 2)
+    xlimit = length(X) - 2;
+end
+axes(handles.axes2);
+plot(X(1:xlimit),XX(1:xlimit),'.'); xlabel('X'); ylabel('Time');
+if (isempty(p1) == 0)
+    Xf = csaps(XX(1:xlimit), X(1:xlimit), p1, XX(1:xlimit));
+    axes(handles.axes2);
+    hold on 
+    plot(Xf(1:xlimit),XX(1:xlimit));
+    hold off
+else Xf = X;
+end
 majax = data(NVideo).majax{Ndrop};
 axes(handles.axes6);
-plot(1:length(majax),majax,'.');
+plot(1:xlimit + 2,majax(1:xlimit + 2),'.');
 if (isempty(p2) == 0)
-    Max = csaps(1:length(majax), majax, p2, 1:length(majax));
+    Max = csaps(1:xlimit, majax(1:xlimit + 2), p2, 1:length(majax));
     axes(handles.axes6);
     hold on 
-    plot(1:length(majax),Max);
+    plot(1:xlimit,Max(1:xlimit + 2));
     hold off
 end
 minax = data(NVideo).minax{Ndrop};
 axes(handles.axes7);
-plot(1:length(minax),minax,'.');
+plot(1:xlimit + 2,minax(1:xlimit + 2),'.');
 if (isempty(p3) == 0)
-    Mix = csaps(1:length(minax), minax, p3, 1:length(minax));
+    Mix = csaps(1:xlimit + 2, minax(1:xlimit + 2), p3, 1:length(minax));
     axes(handles.axes7);
     hold on 
-    plot(1:length(minax),Mix);
+    plot(1:xlimit,Mix(1:xlimit + 2));
     hold off
-end
-X = data(NVideo).X{Ndrop};
-XX = (1:length(X))/fps;
-axes(handles.axes2);
-plot(X,XX,'.'); xlabel('X'); ylabel('Time');
-if (isempty(p1) == 0)
-    Xf = csaps(XX, X, p1, XX);
-    axes(handles.axes2);
-    hold on 
-    plot(Xf,XX);
-    hold off
-else Xf = X;
 end
 if (isempty(p2) == 1 || isempty(p3) == 1)
     Max = majax;
     Mix = minax;
 end
 delta = (Max - Mix)./(Max + Mix);
-[epsilonDot,z1,z2,speed] = intTsn(delta,Mix,Max,Xf,visc);
+[epsilonDot,z1,z2,speed] = intTsn(delta(1:xlimit + 2),Mix(xlimit + 2),Max(1:xlimit + 2),Xf(1:xlimit + 2),visc);
 axes(handles.axes8);
-plot(Xf(1:length(speed)),speed,'.');
+plot(Xf(1:xlimit + 1),speed(1:xlimit + 1),'.');
 if (isempty(p4) == 0)
-    speedf = csaps(Xf(1:length(speed)), speed, p4, Xf(1:length(speed)));
+    speedf = csaps(Xf(1:xlimit + 1), speed(1:xlimit + 1), p4, Xf(1:xlimit + 1));
     axes(handles.axes8);
     hold on 
-    plot(Xf(1:length(speedf)),speedf);
+    plot(Xf(1:xlimit + 1),speedf(1:xlimit + 1));
     hold off
 end
+if (isempty(xlimit) == 1 || xlimit > length(epsilonDot))
+    xlimit = length(epsilonDot);
+end
 axes(handles.axes3);
-plot(X(1:length(epsilonDot)),epsilonDot,'.'); xlabel('X'); ylabel('epsilonDot');
+plot(X(1:xlimit),epsilonDot(1:xlimit),'.'); xlabel('X'); ylabel('epsilonDot');
 if (isempty(p5) == 0)
-    epsilonf = csaps(Xf(1:length(epsilonDot)), epsilonDot, p5, Xf(1:length(epsilonDot)));
+    epsilonf = csaps(Xf(1:xlimit), epsilonDot(1:xlimit), p5, Xf(1:xlimit));
     axes(handles.axes3)
     hold on 
-    plot(Xf(1:length(epsilonDot)),epsilonf);
+    plot(Xf(1:xlimit),epsilonf(1:xlimit));
     hold off
 end
 if (isempty(p5) == 1)
     epsilonf = epsilonDot;
 end
 axes(handles.axes4);
-plot(X(1:length(delta)),delta,'.'); xlabel('X'); ylabel('Deformation');
+plot(X(1:xlimit + 2),delta(1:xlimit + 2),'.'); xlabel('X'); ylabel('Deformation');
 axes(handles.axes5);
 coeff = polyfit(z2(1:length(z1)),z1,1);
 slope = coeff(1);
-plot(z2(1:length(z1)),z1,'.');
+plot(z2(1:xlimit),z1(1:xlimit),'.');
 hold on 
-plot(z2(1:length(z1)),polyval(coeff,z2(1:length(z1))));
+plot(z2(1:xlimit),polyval(coeff,z2(1:xlimit)));
 hold off
 set(handles.text16,'String',['Slope = ',num2str(slope)]);
 datafit.area = data(NVideo).area{Ndrop};
@@ -645,7 +652,6 @@ datafit.minax = Mix;
 datafit.majax = Max;
 datafit.X = Xf;
 datafit.epsilonDot = epsilonf;
-
 
 
 % --- Executes on button press in pushbutton8.
@@ -938,7 +944,7 @@ function edit15_Callback(hObject, eventdata, handles) %Dilation
 % Hints: get(hObject,'String') returns contents of edit15 as text
 %        str2double(get(hObject,'String')) returns contents of edit15 as a double
 global se
-se = str2num(hObject.String);
+se = strel('disk',str2num(hObject.String));
 
 
 % --- Executes during object creation, after setting all properties.
@@ -963,7 +969,7 @@ function edit16_Callback(hObject, eventdata, handles) %Opening
 % Hints: get(hObject,'String') returns contents of edit16 as text
 %        str2double(get(hObject,'String')) returns contents of edit16 as a double
 global se1
-se1 = str2num(hObject.String);
+se1 = strel('disk',str2num(hObject.String));
 
 % --- Executes during object creation, after setting all properties.
 function edit16_CreateFcn(hObject, eventdata, handles)
@@ -1007,3 +1013,36 @@ function text16_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to text16 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
+
+
+% --- Executes on slider movement.
+function slider3_Callback(hObject, eventdata, handles)
+% hObject    handle to slider3 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+
+global xlimit
+global lengthx
+if (hObject.Value > lengthx)
+    hObject.Value = lengthx - 1;
+end
+if (isempty(lengthx) == 0)
+    hObject.Max = lengthx;
+end
+hObject.SliderStep = [1/(hObject.Max - 1) 2/(hObject.Max - 1)];
+xlimit = round(hObject.Value);
+
+
+% --- Executes during object creation, after setting all properties.
+function slider3_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to slider3 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: slider controls usually have a light gray background.
+if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor',[.9 .9 .9]);
+end
