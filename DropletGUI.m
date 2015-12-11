@@ -594,20 +594,20 @@ majax = data(NVideo).majax{Ndrop};
 axes(handles.axes6);
 plot(1:xlimit + 2,majax(1:xlimit + 2),'.');
 if (isempty(p2) == 0)
-    Max = csaps(1:xlimit, majax(1:xlimit + 2), p2, 1:length(majax));
+    Max = csaps(1:xlimit + 2, majax(1:xlimit + 2), p2, 1:xlimit + 2);
     axes(handles.axes6);
     hold on 
-    plot(1:xlimit,Max(1:xlimit + 2));
+    plot(1:xlimit + 2,Max(1:xlimit + 2));
     hold off
 end
 minax = data(NVideo).minax{Ndrop};
 axes(handles.axes7);
 plot(1:xlimit + 2,minax(1:xlimit + 2),'.');
 if (isempty(p3) == 0)
-    Mix = csaps(1:xlimit + 2, minax(1:xlimit + 2), p3, 1:length(minax));
+    Mix = csaps(1:xlimit + 2, minax(1:xlimit + 2), p3, 1:xlimit + 2);
     axes(handles.axes7);
     hold on 
-    plot(1:xlimit,Mix(1:xlimit + 2));
+    plot(1:xlimit + 2,Mix(1:xlimit + 2));
     hold off
 end
 if (isempty(p2) == 1 || isempty(p3) == 1)
