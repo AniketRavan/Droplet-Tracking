@@ -581,12 +581,12 @@ if (isempty(xlimit) == 1 || xlimit > length(X) - 2)
     xlimit = length(X) - 2;
 end
 axes(handles.axes2);
-plot(X(1:xlimit),XX(1:xlimit),'.'); xlabel('X'); ylabel('Time');
+plot(X(1:xlimit + 2),XX(1:xlimit + 2),'.'); xlabel('X'); ylabel('Time');
 if (isempty(p1) == 0)
-    Xf = csaps(XX(1:xlimit), X(1:xlimit), p1, XX(1:xlimit));
+    Xf = csaps(XX(1:xlimit + 2), X(1:xlimit + 2), p1, XX(1:xlimit + 2));
     axes(handles.axes2);
     hold on 
-    plot(Xf(1:xlimit),XX(1:xlimit));
+    plot(Xf(1:xlimit + 2),XX(1:xlimit + 2));
     hold off
 else Xf = X;
 end
@@ -617,7 +617,8 @@ end
 delta = (Max - Mix)./(Max + Mix);
 [epsilonDot,z1,z2,speed] = intTsn(delta(1:xlimit + 2),Mix(xlimit + 2),Max(1:xlimit + 2),Xf(1:xlimit + 2),visc);
 axes(handles.axes8);
-plot(Xf(1:xlimit + 1),speed(1:xlimit + 1),'.');
+s = diff(Xf)*fps;
+plot(Xf(1:xlimit + 1),s(1:xlimit + 1),'.');
 if (isempty(p4) == 0)
     speedf = csaps(Xf(1:xlimit + 1), speed(1:xlimit + 1), p4, Xf(1:xlimit + 1));
     axes(handles.axes8);
