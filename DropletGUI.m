@@ -22,7 +22,7 @@ function varargout = DropletGUI(varargin)
 
 % Edit the above text to modify the response to help DropletGUI
 
-% Last Modified by GUIDE v2.5 11-Dec-2015 07:29:22
+% Last Modified by GUIDE v2.5 11-Dec-2015 08:51:25
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -361,7 +361,7 @@ global fps
 global cropUp cropDown cropLeft cropRight
 global data
 global Crop
-global angle
+global angle smooth
 global se se1 Size
 global minax
 for idx = 1:length(FileName)
@@ -407,7 +407,10 @@ for i = 1:size(Im,3)
     if (Crop == 1)
         im = im(cropUp:cropDown,cropLeft:cropRight);
     end
-    ed = edge(im);
+    if (isempty(smooth) == 1)
+        smooth = sqrt(2);
+    end
+    ed = edge(im,'canny',[],smooth);
     if (isempty(se) == 1)
         se = strel('disk',1);
     end
@@ -902,7 +905,7 @@ global address FileName
 global idx i 
 global angle
 global im
-global Crop cropUp cropDown cropLeft cropRight se se1 Size
+global Crop cropUp cropDown cropLeft cropRight se se1 Size smooth
     vid=VideoReader([address,FileName{idx}]); %Video object
     img = read(vid,i);
     if (isempty(angle) == 0)
@@ -915,7 +918,10 @@ global Crop cropUp cropDown cropLeft cropRight se se1 Size
     im = img;
     clear img
     im = mat2gray(im);
-    ed = edge(im);
+    if (isempty(smooth) == 1)
+        smooth = sqrt(2);
+    end
+    ed = edge(im,'canny',[],smooth);
     if (isempty(se) == 1)
         se = strel('disk',1);
     end
@@ -1045,4 +1051,28 @@ function slider3_CreateFcn(hObject, eventdata, handles)
 % Hint: slider controls usually have a light gray background.
 if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor',[.9 .9 .9]);
+end
+
+
+
+function edit18_Callback(hObject, eventdata, handles)
+% hObject    handle to edit18 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit18 as text
+%        str2double(get(hObject,'String')) returns contents of edit18 as a double
+global smooth
+smooth = str2num(hObject.String);
+
+% --- Executes during object creation, after setting all properties.
+function edit18_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit18 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
 end
