@@ -1,177 +1,102 @@
-global fps 
-global scale
-global Tracked
+clc
+clear all
+close all
+
 [FileName,address] = uigetfile('MultiSelect','on');
 if ischar(FileName)
     FileName = {FileName};
 end
-scale = 1/0.49 * 1e-6; % meter per pixel
-fps = 10000; %frames per second
-viscD = 0.008;
-viscC = 0.0215;
-rotate = -90; %Counterclockwise
+
+delta_matrix=cell(1,length(FileName)); r_star_matrix=cell(1,length(FileName));
+
 for idx = 1:length(FileName)
-    
-    drawnow;
-    color = [{'red'},{'green'},{'blue'},{'black'},{'magenta'}];
-    passed = 0;
-    Area = {[]};
-    delta = {[]};
-    majax = {[]};
-    minax = {[]};
-    speed = {[]};
-    X = {[]};
     clear v
     v = VideoWriter([address,FileName{idx},'Tracked.avi']);
     v.FrameRate = 5;
     open(v);
     clear Im
-    vid=VideoReader([address,FileName{idx}]); %Video object
+    vid=VideoReader([address,FileName{idx}]); %video object
     numFrames = vid.NumberOfFrames;
     n=numFrames;
-    cropUp = 450;
-    cropDown = [];
-for i = 1:n
-    Im(:,:,(i - 1) + 1) = read(vid,i);
+    cropUp = 180;            % Crop upperlimit
+    cropDown = [];           % Crop lowerlimit
+for i = 1:5:n
+    Im(:,:,(i - 1)/5 + 1) = read(vid,i);
 end
-
+scale = 1/1.066; % micrometer per pixel
+fps = 5000;      % Frame per Second
 flag = 0; 
-%imshow(Im(:,:,1));
-% [x,y] = ginput(4);
-% cropLeft = x(1);
-% cropRight = x(2);
-% cropUp = y(3);
-% cropDown = y(4);
+w1 = 100;       % [um] channel width
+
+
 for i = 1:size(Im,3)
-    %i
 %     im = imread([address,FileName{i}]);
 %     im = rgb2gray(im);
-    if (isempty(cropDown))
-        cropDown = size(Im,1);
-    end
-    im = Im(:,:,i);
+if isempty(cropDown) 
+   cropDown = size(Im,1);
+end
+    im = Im(cropUp:cropDown,:,i);
     im = mat2gray(im);
-    im = imrotate(im,rotate);
-    im = im(cropUp:cropDown,:);
-%     im = adapthisteq(im);
-%     im = adapthisteq(im);
-%     im = wiener2(im,[5,5]);
+    im = adapthisteq(im); %Contrast enhancement
     ed = edge(im);
-    se = strel('disk',1);
-    se1 = strel('disk',5);
-    ed = imdilate(ed,se);
     bw = imfill(ed,'holes');
-    bw = imerode(bw,se);
-    bw = imclearborder(bw);
-    bw = bwareaopen(bw,1500);
-    bw = imopen(bw,se1);
+    bw = bwareaopen(bw,800);
     bw = imclearborder(bw);
     %a = regionprops(bw,'Area');
     edg = bwperim(bw);
-    %imwrite(bw,[address,int2str(i),'.tif']);
+    %overlap = double(edg) + im;
     stats = regionprops(bw,'Centroid','MajorAxisLength','MinorAxisLength','Area');
-    im = im + double(edg);
-    ref = [];
-    ascInd = [];
-        if (i == 1)
-            flag = 0;
+    if (size(stats,1) ~= 0)
+        CNew = stats.Centroid;
+        if (flag == 1)
+            disp(:,i) = CNew - COld;
+            dist(i) = sqrt(disp(1,i)^2 + disp(2,i)^2)*scale;
+            speed(i) = dist(i)/fps;
         end
-        
-        if (size(stats,1) ~= 0)
-            
-            for z = 1:size(stats,1)
-            ref(z) = stats(z).Centroid(2);
-            end
-            refSort = sort(ref);
-            if (i ~= 1)
-                if (min(ref) > top)
-                    passed = passed + 1;
-                end
-            end
-            top = min(ref);
-            for k = 1:length(refSort)
-                ascInd(k) = find(ref == refSort(k));
-            end
-        CNew = [];
-        for p = 1:size(stats,1)
-            %im = insertMarker(im,[stats(ascInd(p)).Centroid(1),stats(ascInd(p)).Centroid(2)],'Color',color(mod((p+passed),5)+1),'size',10);
-            CNew(p,:) = stats(ascInd(p)).Centroid;
-            A(p) = stats(ascInd(p)).Area*scale^2;
-            Majax(p) = stats(ascInd(p)).MajorAxisLength*scale;
-            Minax(p) = stats(ascInd(p)).MinorAxisLength*scale;
-            Delta(p) = (Majax(p) - Minax(p))/(Majax(p) + Minax(p));
-            if (flag == 1)
-%             if (p <= size(COld,1))
-%                 disp(p,:) = CNew(p,:) - COld(p,:);
-%                 dist = sqrt(disp(p,1)^2 + disp(p,2)^2)*scale;
-%                 Speed(p) = dist/fps;
-%             else disp(p,1:2) = NaN;
-%                 Speed(p) = NaN;
-%             end
-            
-            if (p + passed > length(majax))
-%                 speed{p + passed} = [];
-                Area{p + passed} = [];
-                delta{p + passed} = [];
-%                 speed{p + passed} = [];
-                majax{p + passed} = [];
-                minax{p + passed} = [];
-                X{p + passed} = [];
-            else
-                %speed{p + passed} = [speed{p + passed},Speed(p)];
-                Area{p + passed} = [Area{p + passed},A(p)];
-                delta{p + passed} = [delta{p + passed},Delta(p)];
-                majax{p + passed} = [majax{p + passed},Majax(p)];
-                minax{p + passed} = [minax{p + passed},Minax(p)];
-                X{p + passed} = [X{p + passed},size(im,1) - CNew(p,2)];
-            end
-            end
-        end
-        flag = 1;
         COld = CNew;
+        majax(i) = stats.MajorAxisLength*scale;
+        minax(i) = stats.MinorAxisLength*scale;
+        delta(i) = (majax(i) - minax(i))/(majax(i) + minax(i));
+        area(i) = stats.Area*scale^2;
+        r_star(i) = 2*(sqrt(area(i)/pi))/w1;
+        flag = 1;
+        im = im + double(edg);
         im = mat2gray(im);
-        else flag = 0; COld = [];
-        end
-        writeVideo(v,im);
-    %%%%%%%%%%%
-    
-    %%%%%%%%%%%
+        im = insertMarker(im,[CNew(1,1),CNew(1,2)]);
+    else flag = 0;
+    end
+    writeVideo(v,im);
+%%%%%%%%%%%%%%%%%%%%%%   modify  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%    end    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
 end
-% xlswrite([address,'data'],{'Major Axis'},FileName{idx},'A1:A1');
-% xlswrite([address,'data'],majax',FileName{idx},'A2');
-% xlswrite([address,'data'],{'Minor Axis'},FileName{idx},'B1:B1');
-% xlswrite([address,'data'],minax',FileName{idx},'B2');
-% xlswrite([address,'data'],{'Delta'},FileName{idx},'C1:C1');
-% xlswrite([address,'data'],delta',FileName{idx},'C2');
-% xlswrite([address,'data'],{'Speed'},FileName{idx},'D1:D1');
-% xlswrite([address,'data'],speed',FileName{idx},'D2');
-% xlswrite([address,'data'],{'Area'},FileName{idx},'E1:E1');
-% xlswrite([address,'data'],area',FileName{idx},'E2');
+xlswrite([address,'data'],{'Major Axis'},FileName{idx},'A1:A1');
+xlswrite([address,'data'],majax',FileName{idx},'A2');
+xlswrite([address,'data'],{'Minor Axis'},FileName{idx},'B1:B1');
+xlswrite([address,'data'],minax',FileName{idx},'B2');
+xlswrite([address,'data'],{'Delta'},FileName{idx},'C1:C1');
+xlswrite([address,'data'],delta',FileName{idx},'C2');
+xlswrite([address,'data'],{'Speed'},FileName{idx},'D1:D1');
+xlswrite([address,'data'],speed',FileName{idx},'D2');
+xlswrite([address,'data'],{'Area'},FileName{idx},'E1:E1');
+xlswrite([address,'data'],area',FileName{idx},'E2');
+xlswrite([address,'data'],{'R_star'},FileName{idx},'F1:F1');
+xlswrite([address,'data'],r_star',FileName{idx},'F2');
 
-%%%%%%%%%%%% Fitting
-% for j = 1:length(X)
-%     if (isempty(X{j}) == 0)
-%     X{j} = sgolayfilt(X{j},5,floor(length(X{j})/5)*2 + 1);
-%     p = polyfit(1:length(majax{j}),majax{j},9);
-%     majax{j} = polyval(p,1:length(majax{j}));
-%     p = polyfit(1:length(minax{j}),minax{j},9);
-%     minax{j} = polyval(p,1:length(minax{j}));
-%     delta{j} = (majax{j} - minax{j})./(majax{j} + minax{j});
-%     end
-% end
-%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%   modify  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+delta_matrix{idx}=delta';    r_star_matrix{idx}=r_star';
+%%%%%%%%%%%%%%%%%%%%%%    end    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 close(v);
-visc = [0.008,0.0215];
-T = [];
-vArea = []; vMinax = []; vMajax = []; vSpeed = []; vDelta = [];
-for t = 1:length(Area)
-    vArea = [vArea,Area{t}];
-    vMinax = [vMinax,minax{t}];
-    vMajax = [vMajax,majax{t}];
-%     vSpeed = [vSpeed,speed{t}];
-    vDelta = [vDelta,delta{t}];
+idx
 end
 
-
+%%%%%%%%%%%%%%%%%%%%%%   modify  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+figure(1)
+for j =1:length(FileName)
+    dm(j)=max(delta_matrix{j});
+    rsm(j)=max(r_star_matrix{j});
 end
+plot(rsm,dm,'o');
+xlabel('R*'); ylabel('delta max');
+hgsave (figure(1), 'figure1');
+%%%%%%%%%%%%%%%%%%%%%%    end    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
