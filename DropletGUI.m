@@ -670,7 +670,7 @@ axes(handles.axes4);
 plot(X(1:xlimit + 2),delta(1:xlimit + 2),'.'); xlabel('X'); ylabel('Deformation');
 axis([min(X) max(X) min(delta) max(delta)]);
 axes(handles.axes5);
-coeff = polyfit(z2(1:length(z1)),z1,1);
+coeff = polyfit(z2(1:xlimit),z1(1:xlimit),1);
 slope = coeff(1);
 plot(z2(1:xlimit),z1(1:xlimit),'.');
 hold on 
