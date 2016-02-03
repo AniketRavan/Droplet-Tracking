@@ -22,7 +22,7 @@ function varargout = DropletGUI(varargin)
 
 % Edit the above text to modify the response to help DropletGUI
 
-% Last Modified by GUIDE v2.5 11-Dec-2015 08:51:25
+% Last Modified by GUIDE v2.5 01-Feb-2016 16:02:41
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -357,14 +357,20 @@ global FileName
 global address
 global scale
 global fps
-global cropUp cropDown cropLeft cropRight
+global cropUp cropDown cropLeft cropRight pop threshold 
 global data
 global Crop
 global angle smooth
 global se se1 Size
-global minax
+global minax 
+if (isempty(pop))
+    pop = 1;
+end
+if (isempty(threshold))
+    threshold = 0.4;
+end
 for idx = 1:length(FileName)
-    h = msgbox(['Processing Video File ',int2str(idx),' of ',int2str(length(FileName))]);
+    set(handles.text19,'String',['Processing Video File ',int2str(idx),' of ',int2str(length(FileName))]); 
     drawnow                                                                 %% Update figure windows and process callbacks
     color = [{'red'},{'green'},{'blue'},{'black'},{'magenta'}];
     passed = 0;
@@ -378,7 +384,7 @@ for idx = 1:length(FileName)
     v.FrameRate = 5;
     open(v);
     clear Im
-    vid=VideoReader([address,FileName{idx}]); %Video object
+    vid = VideoReader([address,FileName{idx}]); %Video object
     numFrames = vid.NumberOfFrames;
     n=numFrames;
     
@@ -409,17 +415,25 @@ for i = 1:size(Im,3)
     if (isempty(smooth) == 1)
         smooth = sqrt(2);
     end
-    ed = edge(im,'canny',[],smooth);
+    
     if (isempty(se) == 1)
         se = strel('disk',1);
     end
     if (isempty(se1) == 1)
         se1 = strel('disk',5);
     end
-    ed = imdilate(ed,se);
-    bw = imfill(ed,'holes');
-    bw = imerode(bw,se);
-    bw = imclearborder(bw);
+    if (pop == 1)
+        im = wiener2(im,[5,5]);                                                 %Applies wiener filter before thresholding
+        ed = edge(im,'canny',[],smooth);
+        ed = imdilate(ed,se);
+        bw = imfill(ed,'holes');
+        bw = imerode(bw,se);
+    end
+    if (pop == 2)
+        bw = im2bw(im,threshold);
+        bw = imfill(imcomplement(bw),'holes');
+    end
+    
     if (isempty(Size) == 1)
         Size = 2000;
     end
@@ -431,6 +445,7 @@ for i = 1:size(Im,3)
     %imwrite(bw,[address,int2str(i),'.tif']);
     stats = regionprops(bw,'Centroid','MajorAxisLength','MinorAxisLength','Area');      %% Measure properties of image region
     im = im + double(edg);
+    %imwrite(bw,[address,int2str(i),'bw.tif']);
     ref = [];
     ascInd = [];
         if (i == 1)
@@ -438,8 +453,8 @@ for i = 1:size(Im,3)
         end
         
         if (size(stats,1) ~= 0)
-            
             for z = 1:size(stats,1)
+                
             ref(z) = stats(z).Centroid(2);
             end
             refSort = sort(ref);
@@ -491,7 +506,7 @@ for i = 1:size(Im,3)
     %%%%%%%%%%%
     
 end
-
+X = X(~cellfun('isempty',X));
 for l = 1:length(X)
     xx{l} = (1:length(X{l}))/fps;
 end
@@ -507,11 +522,10 @@ end
 
 %%%%%%%%%%%%
 close(v);
-close(h);
 end
 set(handles.text10,'String',['(',int2str(length(FileName)),')']);          %% Set object properties: handle text10 in GUI to present drop number
 set(handles.text11,'String',['(',int2str(length(data(1).X)),')']);         %% Set object properties: handle text11 in GUI to present video number
-
+set(handles.text19,'String','Idle');
 
 function edit4_Callback(hObject, eventdata, handles) %Matrix Viscosity
 % hObject    handle to edit4 (see GCBO)
@@ -561,17 +575,17 @@ end
 
 
 % --- Executes on button press in pushbutton7.
-function pushbutton7_Callback(hObject, eventdata, handles) %Fitting
+function pushbutton7_Callback(hObject, eventdata, handles) % Analyze and Data Plot
 % hObject    handle to pushbutton7 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-global fps scale xlimit lengthx 
+global fps xlimitH lengthx xlimitL
 global data datafit
-global Ndrop NVideo
+global Ndrop NVideo FileName
 global viscC viscD
-global p1 p2 p3 p4 p5
-global z1 z2
+global p1 p2 p3 p4 p5 p6 
+global z1 z2 X
 visc = [viscD,viscC];
 if (isempty(Ndrop) == 1)
     Ndrop = 1;
@@ -579,90 +593,132 @@ end
 if (isempty(NVideo) == 1)
     NVideo = 1;
 end
+if (Ndrop > length(data(NVideo).X))
+    h = msgbox('Your input exceeds the number of drops');
+    return
+end
+if (NVideo > length(FileName))
+    h = msgbox('Your input exceeds the number of video files');
+    return
+end
 X = data(NVideo).X{Ndrop};
 lengthx = length(X);
 XX = (1:length(X))/fps;
-if (isempty(xlimit) == 1 || xlimit > length(X) - 2)
-    xlimit = length(X) - 2;
+if (isempty(xlimitH) == 1 || xlimitH > length(X) - 2)
+    xlimitH = length(X) - 2;
+end
+if (isempty(xlimitL))
+    xlimitL = 1;
 end
 axes(handles.axes2);                                                        %% write in the axes2 figure until axes6
-plot(X(1:xlimit),XX(1:xlimit),'.'); xlabel('X'); ylabel('Time');
+plot(X(xlimitL:xlimitH),XX(xlimitL:xlimitH),'.'); xlabel('X'); ylabel('Time');
 if (isempty(p1) == 0)
-    Xf = csaps(XX(1:xlimit + 2), X(1:xlimit + 2), p1, XX(1:xlimit + 2));    %% Cubic smoothing spline.
+    Xf = csaps(XX, X, p1, XX);    %% Cubic smoothing spline.
     axes(handles.axes2);                                                    
     hold on 
-    plot(Xf(1:xlimit + 2),XX(1:xlimit + 2));
-    hold off                                                                
+    plot(Xf(xlimitL:xlimitH + 2),XX(xlimitL:xlimitH + 2));
+    hold off
 else Xf = X;
 end
+axis([min(X) max(X)  min(XX) max(XX)]);
 majax = data(NVideo).majax{Ndrop};
 axes(handles.axes6);
-plot(1:xlimit + 2,majax(1:xlimit + 2),'.');
+plot(X(xlimitL:xlimitH + 2),majax(xlimitL:xlimitH + 2),'.');
 if (isempty(p2) == 0)
-    Max = csaps(1:xlimit + 2, majax(1:xlimit + 2), p2, 1:xlimit + 2);
+    Max = csaps(1:length(majax), majax, p2, 1:length(majax));
     axes(handles.axes6);
     hold on 
-    plot(1:xlimit + 2,Max(1:xlimit + 2));
+    plot(X(xlimitL:xlimitH + 2),Max(xlimitL:xlimitH + 2));
     hold off
 end
+axis([min(X) max(X) min(majax) max(majax)]);
 minax = data(NVideo).minax{Ndrop};
 axes(handles.axes7);
-plot(1:xlimit + 2,minax(1:xlimit + 2),'.');
+plot(X(xlimitL:xlimitH + 2),minax(xlimitL:xlimitH + 2),'.');
 if (isempty(p3) == 0)
-    Mix = csaps(1:xlimit + 2, minax(1:xlimit + 2), p3, 1:xlimit + 2);
+    Mix = csaps(1:length(minax), minax, p3, 1:length(minax));
     axes(handles.axes7);
     hold on 
-    plot(1:xlimit + 2,Mix(1:xlimit + 2));
+    plot(X(xlimitL:xlimitH + 2),Mix(xlimitL:xlimitH + 2));
     hold off
 end
+axis([min(X) max(X) min(minax) max(minax)]);
 if (isempty(p2) == 1 || isempty(p3) == 1)
     Max = majax;
     Mix = minax;
 end
 
 delta = (Max - Mix)./(Max + Mix);
-[epsilonDot,z1,z2,speed] = intTsn(delta(1:xlimit + 2),Mix(xlimit + 2),Max(1:xlimit + 2),Xf(1:xlimit + 2),visc);    
+axes(handles.axes4);
+plot(X(xlimitL:xlimitH + 2),delta(xlimitL:xlimitH + 2),'.'); xlabel('X'); ylabel('Deformation');
+axis([min(X) max(X) min(delta) max(delta)]);
+if (isempty(p6) == 0)
+    deltaf = csaps(1:length(delta), delta, p6, 1:length(delta));
+    axes(handles.axes4);
+    hold on 
+    plot(X(xlimitL:xlimitH + 2),deltaf(xlimitL:xlimitH + 2));
+    hold off
+else
+    deltaf = delta;                                                         %%  when p6 is null:  no fitting (delta)
+end
+[epsilonDot,z1,z2,speed] = intTsn(deltaf,Mix,Max,Xf,visc);                  %% when p6 has a value:  csaps fitting for Deformation curve (deltaf)
+
+
+if (length(epsilonDot) < 2)
+    msgbox('Not enough data','Please change drop number');
+end
 axes(handles.axes8);
-plot(Xf(1:xlimit + 1),speed(1:xlimit + 1),'.');                            
+plot(Xf(xlimitL:xlimitH + 1),speed(xlimitL:xlimitH + 1),'.');                            
 if (isempty(p4) == 0)
-    speedf = csaps(Xf(1:xlimit + 1), speed(1:xlimit + 1), p4, Xf(1:xlimit + 1));
+    speedf = csaps(Xf(1:length(speed)), speed, p4, Xf(1:length(speed)));
     axes(handles.axes8);
     hold on 
-    plot(Xf(1:xlimit + 1),speedf(1:xlimit + 1));
+    plot(Xf(xlimitL:xlimitH + 1),speedf(xlimitL:xlimitH + 1));
     hold off
+else
+    speedf = speed;
 end
-if (isempty(xlimit) == 1 || xlimit > length(epsilonDot))                    
-    xlimit = length(epsilonDot);
+axis([min(Xf) max(Xf) min(speed) max(speed)]);
+if (isempty(xlimitH) == 1 || xlimitH > length(epsilonDot))                    
+    xlimitH = length(epsilonDot);
 end
 axes(handles.axes3);
-plot(X(1:xlimit),epsilonDot(1:xlimit),'.'); xlabel('X'); ylabel('epsilonDot');     
+plot(X(xlimitL:xlimitH),epsilonDot(xlimitL:xlimitH),'.'); xlabel('X'); ylabel('epsilonDot');     
 if (isempty(p5) == 0)
-    epsilonf = csaps(Xf(1:xlimit), epsilonDot(1:xlimit), p5, Xf(1:xlimit));
+    epsilonf = csaps(Xf(1:length(epsilonDot)), epsilonDot, p5, Xf(1:length(epsilonDot)));
     axes(handles.axes3)
     hold on 
-    plot(Xf(1:xlimit),epsilonf(1:xlimit));
+    plot(Xf(xlimitL:xlimitH),epsilonf(xlimitL:xlimitH));
     hold off
 end
+axis([min(Xf) max(Xf) min(epsilonDot) max(epsilonDot)]);
 if (isempty(p5) == 1)
     epsilonf = epsilonDot;
 end
-axes(handles.axes4);
-plot(X(1:xlimit + 2),delta(1:xlimit + 2),'.'); xlabel('X'); ylabel('Deformation');
 axes(handles.axes5);
-coeff = polyfit(z2(1:length(z1)),z1,1);
+coeff = polyfit(z2(xlimitL:xlimitH),z1(xlimitL:xlimitH),1);
 slope = coeff(1);
-plot(z2(1:xlimit),z1(1:xlimit),'.');
+plot(z2(xlimitL:xlimitH),z1(xlimitL:xlimitH),'.');
 hold on 
-plot(z2(1:xlimit),polyval(coeff,z2(1:xlimit)));
+plot(z2(xlimitL:xlimitH),polyval(coeff,z2(xlimitL:xlimitH)));
 hold off
+axis([min(z2) max(z2) min(z1) max(z1)]);                                             %Easier to see plots when xlimitH is changed
 set(handles.text16,'String',['Slope = ',num2str(slope)]);                   %% To handle of text16 in GUI
+set(handles.text19,'String',['Drop ',int2str(Ndrop),' of ',FileName{NVideo}]);
 datafit.area = data(NVideo).area{Ndrop};
 datafit.minax = Mix;
 datafit.majax = Max;
 datafit.X = Xf;
-datafit.epsilonDot = epsilonf;
 datafit.z1 = z1;
 datafit.z2 = z2(1:length(z1));
+datafit.speed = speed;
+datafit.speedf = speedf;
+datafit.epsilonDot = epsilonDot;
+datafit.epsilonf = epsilonf;
+datafit.deltaf = deltaf;
+
+
+
 
 
 % --- Executes on button press in pushbutton8.
@@ -680,13 +736,20 @@ function edit6_Callback(hObject, eventdata, handles) %Ndrop
 
 % Hints: get(hObject,'String') returns contents of edit6 as text
 %        str2double(get(hObject,'String')) returns contents of edit6 as a double
-global Ndrop
-global data
-global NVideo
+global Ndrop NVideo 
+global data lengthx
 if (isempty(NVideo) == 1)
     NVideo = 1;
 end
 Ndrop = str2num(hObject.String);
+if (Ndrop > length(data(NVideo).X))
+    h = msgbox('Your input exceeds the number of drops');
+    return
+end
+X = data(NVideo).X{Ndrop};
+lengthx = length(X);
+set(handles.text11,'String',int2str(length(data(NVideo).X)));
+
 
 
 % --- Executes during object creation, after setting all properties.
@@ -708,12 +771,23 @@ function edit7_Callback(hObject, eventdata, handles) %NVideo
 
 % Hints: get(hObject,'String') returns contents of edit7 as text
 %        str2double(get(hObject,'String')) returns contents of edit7 as a double
-global NVideo
-global data
+global NVideo Ndrop FileName
+global data lengthx
+choice = questdlg('Do you wish to export data to an excel file?','','Yes','No','Yes'); % pops up a question dialogue box asking permission to export data
+if (strcmp(choice,'Yes') == 1)
+    pushbutton9_Callback(hObject, eventdata, handles);
+end
 NVideo = str2num(hObject.String);
+if (NVideo > length(FileName))
+    h = msgbox('Your input exceeds the number of video files');
+    return
+end
 set(handles.text11,'String',int2str(length(data(NVideo).X)));
+X = data(NVideo).X{Ndrop};
+lengthx = length(X);
 
-% --- Executes during object creation, after setting all properties.
+
+% --- Executes during object creation, after setting all properties
 function edit7_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to edit7 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -871,8 +945,7 @@ global datafit
 global data
 global address
 global Ndrop NVideo
-global idx
-global FileName
+global FileName xlimitL xlimitH
 if (isempty(Ndrop) == 1)
     Ndrop = 1;
 end
@@ -881,43 +954,61 @@ if (isempty(NVideo) == 1)
 end
 %%% Messagebox
 if (isempty(datafit) == 0)
-    a = datafit.area;
-    min = datafit.minax;
-    maj = datafit.minax;
-    X = datafit.X;
-    Z1 = datafit.z1;
-    Z2 = datafit.z2;
-    a_raw = data.area{Ndrop};
-    min_raw = data.minax{Ndrop};
-    maj_raw = data.minax{Ndrop};
-    X_raw = data.X{Ndrop};
-    time = data.XX{Ndrop};
+    area_fp = datafit.area;                                                 %% fp: Plot Fitted data,  %% p: Plot raw data
+    minax_fp = datafit.minax;
+    majax_fp = datafit.majax;
+    X_fp = datafit.X;
+    z1_fp = datafit.z1;
+    z2_fp = datafit.z2;
+    deltaf_fp = datafit.deltaf;
+    speed_p = datafit.speed;
+    speedf_fp = datafit.speedf;
+    epsilonDot_p = datafit.epsilonDot;                                     
+    epsilonf_fp = datafit.epsilonf;
+    minax_p = data(NVideo).minax{Ndrop};                                    
+    majax_p = data(NVideo).majax{Ndrop};
+    X_p = data(NVideo).X{Ndrop};
+    time = data(NVideo).XX{Ndrop};
+    delta_p = data(NVideo).delta{Ndrop};
     h = msgbox('Processing');
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],{'a'},'Sheet1','A1:A1');
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],a','Sheet1','A2');
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],{'min'},'Sheet1','B1:B1');
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],min','Sheet1','B2');
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],{'maj'},'Sheet1','C1:C1');
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],maj','Sheet1','C2');
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],{'X'},'Sheet1','D1:D1');
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],X','Sheet1','D2');    
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],{'z1'},'Sheet1','E1:E1');
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],Z1','Sheet1','E2');
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],{'z2'},'Sheet1','F1:F1');
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],Z2','Sheet1','F2');
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],{'min_raw'},'Sheet1','G1:G1');
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],min_raw','Sheet1','G2');
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],{'maj_raw'},'Sheet1','H1:H1');
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],maj_raw','Sheet1','H2');
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],{'X_raw'},'Sheet1','I1:I1');
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],X_raw','Sheet1','I2');
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],{'time'},'Sheet1','J1:J1');
-    xlswrite([address,['Data(',FileName{idx},'Tracked).xls']],time','Sheet1','J2');
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],{'X position (unfitted)'},'Sheet1','A1:A1');  %% X position of drop unfitted
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],X_p(xlimitL:xlimitH + 2)','Sheet1','A2');    
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],{'X position (fitted)'},'Sheet1','B1:B1');    %% X position of drop fitted
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],X_fp(xlimitL:xlimitH + 2)','Sheet1','B2');    
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],{'time'},'Sheet1','C1:C1');                 
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],time(xlimitL:xlimitH + 2)','Sheet1','C2');
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],{'epsilonDot (unfitted)'},'Sheet1','D1:D1');  %% epsilonDot unfitted           
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],epsilonDot_p(xlimitL:xlimitH)','Sheet1','D2');
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],{'epsilonDot (fitted)'},'Sheet1','E1:E1');    %% epsilonDot fitted
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],epsilonf_fp(xlimitL:xlimitH)','Sheet1','E2');
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],{'min axis (unfitted)'},'Sheet1','F1:F1');    %% minor axis unfitted
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],minax_p(xlimitL:xlimitH + 2)','Sheet1','F2');               
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],{'maj axis (unfitted)'},'Sheet1','G1:G1');    %% major axis unfitted
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],majax_p(xlimitL:xlimitH + 2)','Sheet1','G2');               
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],{'min axis (fitted)'},'Sheet1','H1:H1');      %% minor axis fitted
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],minax_fp(xlimitL:xlimitH + 2)','Sheet1','H2');               
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],{'maj axis (fitted)'},'Sheet1','I1:I1');      %% major axis fitted      
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],majax_fp(xlimitL:xlimitH + 2)','Sheet1','I2');               
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],{'velocity (unfitted)'},'Sheet1','J1:J1');      %% velocity unfitted
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],speed_p(xlimitL:xlimitH + 1)','Sheet1','J2');       
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],{'velocity (fitted)'},'Sheet1','K1:K1');      %% velocity fitted      
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],speedf_fp(xlimitL:xlimitH + 1)','Sheet1','K2');      
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],{'Deformation factor (unfitted)'},'Sheet1','L1:L1');      %% Deformation unfitted
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],delta_p(xlimitL:xlimitH + 2)','Sheet1','L2');       
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],{'Deformation factor (fitted)'},'Sheet1','M1:M1');      %% Deformation fitted      
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],deltaf_fp(xlimitL:xlimitH + 2)','Sheet1','M2');    
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],{'z2 (X axis)'},'Sheet1','N1:N1');          %% X axis of IT
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],z2_fp(xlimitL:xlimitH)','Sheet1','N2');
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],{'z1 (Y axis)'},'Sheet1','O1:O1');          %% Y axis of IT
+    xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],z1_fp(xlimitL:xlimitH)','Sheet1','O2');
+    
+    
+    %xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],{'area'},'Sheet1','A1:A1');
+    %xlswrite([address,['Data(',FileName{NVideo},'Tracked).xls']],area_fp','Sheet1','A2');
     close(h);
 else msgbox('Please process your data before exporting');
-    savefig(DropletGUI,[address,['ScreenShot(',FileName{idx},'Tracked).fig']]);
 end
-
+     savefig(DropletGUI,[address,['ScreenShot(',FileName{NVideo},'Tracked).fig']]);
 
 % --- Executes on button press in pushbutton10. %Play Video button
 function pushbutton10_Callback(hObject, eventdata, handles)
@@ -938,11 +1029,17 @@ function pushbutton11_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton11 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-global address FileName
+global address FileName pop threshold
 global idx i 
 global angle
 global im
 global Crop cropUp cropDown cropLeft cropRight se se1 Size smooth
+if (isempty(pop) == 1)
+    pop = 1;
+end
+if isempty(threshold)
+    threshold = 0.4;
+end
     vid=VideoReader([address,FileName{idx}]); %Video object
     img = read(vid,i);
     if (isempty(angle) == 0)
@@ -958,16 +1055,24 @@ global Crop cropUp cropDown cropLeft cropRight se se1 Size smooth
     if (isempty(smooth) == 1)
         smooth = sqrt(2);
     end
-    ed = edge(im,'canny',[],smooth);                                        %% edge detection with canny.
+    
     if (isempty(se) == 1)
         se = strel('disk',1);
     end
     if (isempty(se1) == 1)
         se1 = strel('disk',5);
     end
-    ed = imdilate(ed,se);
-    bw = imfill(ed,'holes');
-    bw = imerode(bw,se);
+    if (pop == 1)
+        im = wiener2(im,[5,5]);                                                 %% Applies wiener filter before edge detection
+        ed = edge(im,'canny',[],smooth);                                        %% edge detection with canny.
+        ed = imdilate(ed,se);
+        bw = imfill(ed,'holes');
+        bw = imerode(bw,se);
+    end
+    if (pop == 2)
+        bw = im2bw(im,threshold);                                               %%Binary thresholding for black and white image
+        bw = imfill(imcomplement(bw),'holes');
+    end
     bw = imclearborder(bw);
     if (isempty(Size) == 1)
         Size = 2000;
@@ -1067,17 +1172,15 @@ function slider3_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'Value') returns position of slider
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 
-global xlimit
-global lengthx
+global xlimitH lengthx
 if (hObject.Value > lengthx)
-    hObject.Value = lengthx - 1;
+    hObject.Value = lengthx - 3;
 end
 if (isempty(lengthx) == 0)
     hObject.Max = lengthx - 2;
 end
 hObject.SliderStep = [1/(hObject.Max - 1) 2/(hObject.Max - 1)];
-xlimit = round(hObject.Value);
-
+xlimitH = round(hObject.Value);
 
 % --- Executes during object creation, after setting all properties.
 function slider3_CreateFcn(hObject, eventdata, handles)
@@ -1091,6 +1194,32 @@ if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColo
 end
 
 
+% --- Executes on slider movement.
+function slider4_Callback(hObject, eventdata, handles)
+% hObject    handle to slider4 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+global xlimitL lengthx
+if (isempty(lengthx) == 0)
+    hObject.Max = lengthx - 2;
+end
+hObject.SliderStep = [1/(hObject.Max - 1) 2/(hObject.Max - 1)];
+xlimitL = round(hObject.Value);
+
+
+% --- Executes during object creation, after setting all properties.
+function slider4_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to slider4 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: slider controls usually have a light gray background.
+if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor',[.9 .9 .9]);
+end
 
 function edit18_Callback(hObject, eventdata, handles)
 % hObject    handle to edit18 (see GCBO)
@@ -1113,3 +1242,102 @@ function edit18_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+% --- Executes on selection change in popupmenu2.
+function popupmenu2_Callback(hObject, eventdata, handles)
+% hObject    handle to popupmenu2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns popupmenu2 contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from popupmenu2
+global pop
+pop = hObject.Value;
+
+% --- Executes during object creation, after setting all properties.
+function popupmenu2_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to popupmenu2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function edit19_Callback(hObject, eventdata, handles)
+% hObject    handle to edit19 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit19 as text
+%        str2double(get(hObject,'String')) returns contents of edit19 as a double
+global threshold
+threshold = str2num(hObject.String);
+
+% --- Executes during object creation, after setting all properties.
+function edit19_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit19 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes during object creation, after setting all properties.
+function text19_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to text19 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+
+
+function edit21_Callback(hObject, eventdata, handles)
+% hObject    handle to edit21 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit21 as text
+%        str2double(get(hObject,'String')) returns contents of edit21 as a double
+global p6
+p6 = str2num(hObject.String);
+
+
+% --- Executes during object creation, after setting all properties.
+function edit21_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit21 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in pushbutton12.
+function pushbutton12_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton12 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global data address FileName scale fps viscD viscC
+c = clock;
+save([address,'data (',num2str(c(4)),'-',num2str(c(5)),').mat'],'data','FileName','address','scale','fps','viscD','viscC');  %saves data with the current time as the file name
+
+
+% --- Executes on button press in pushbutton13.
+function pushbutton13_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton13 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+[name,add] = uigetfile;
+load([add,name]);
