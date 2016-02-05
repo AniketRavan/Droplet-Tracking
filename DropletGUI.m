@@ -705,6 +705,8 @@ hold off
 axis([min(z2) max(z2) min(z1) max(z1)]);                                             %Easier to see plots when xlimitH is changed
 set(handles.text16,'String',['Slope = ',num2str(slope)]);                   %% To handle of text16 in GUI
 set(handles.text19,'String',['Drop ',int2str(Ndrop),' of ',FileName{NVideo}]);
+set(handles.text10,'String',['(',int2str(length(FileName)),')']);           %% text10: display No. of Videos
+set(handles.text11,'String',int2str(length(data(NVideo).X)));               %% text11: display No. of drops
 datafit.area = data(NVideo).area{Ndrop};
 datafit.minax = Mix;
 datafit.majax = Max;
@@ -782,9 +784,11 @@ if (NVideo > length(FileName))
     h = msgbox('Your input exceeds the number of video files');
     return
 end
+set(handles.text10,'String',['(',int2str(length(FileName)),')']);
 set(handles.text11,'String',int2str(length(data(NVideo).X)));
 X = data(NVideo).X{Ndrop};
 lengthx = length(X);
+
 
 
 % --- Executes during object creation, after setting all properties
