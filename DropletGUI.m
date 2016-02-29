@@ -91,6 +91,8 @@ vid=VideoReader([address,FileName{idx}]); %Video object
 img = read(vid,i);
 if (isempty(angle) == 0)                                                    %% ==0: is not empty, == 1: is empty
     img = imrotate(img,angle);
+else
+    angle = 0;
 end
 axes(handles.axes1);                                                        
 if (Crop == 1)                                                              
@@ -361,7 +363,7 @@ global cropUp cropDown cropLeft cropRight pop threshold
 global data
 global Crop
 global angle smooth
-global se se1 Size
+global se se1 Size edg
 global minax 
 if (isempty(pop))
     pop = 1;
@@ -433,7 +435,15 @@ for i = 1:size(Im,3)
         bw = im2bw(im,threshold);
         bw = imfill(imcomplement(bw),'holes');
     end
-    
+    if (pop == 3)
+        im = wiener2(im,[15,15]);
+        im = mat2gray(im);
+        ed = edge(im,'canny',[],smooth);  
+        ed = imdilate(ed,se);
+        bw = ~im2bw(im,threshold);
+        bw = imfill(bw,'holes');    
+        bw = imerode(bw,se);
+    end
     if (isempty(Size) == 1)
         Size = 2000;
     end
@@ -585,7 +595,7 @@ global data datafit
 global Ndrop NVideo FileName
 global viscC viscD
 global p1 p2 p3 p4 p5 p6 
-global z1 z2 X
+global z1 z2 X delta XX Mix Max
 visc = [viscD,viscC];
 if (isempty(Ndrop) == 1)
     Ndrop = 1;
@@ -1036,7 +1046,7 @@ function pushbutton11_Callback(hObject, eventdata, handles)
 global address FileName pop threshold
 global idx i 
 global angle
-global im
+global im ed bw
 global Crop cropUp cropDown cropLeft cropRight se se1 Size smooth
 if (isempty(pop) == 1)
     pop = 1;
@@ -1060,10 +1070,10 @@ end
         smooth = sqrt(2);
     end
     
-    if (isempty(se) == 1)
+    if (isempty(se) == 1)                                                       %% Dilation
         se = strel('disk',1);
     end
-    if (isempty(se1) == 1)
+    if (isempty(se1) == 1)                                                      %% Opening
         se1 = strel('disk',5);
     end
     if (pop == 1)
@@ -1076,6 +1086,15 @@ end
     if (pop == 2)
         bw = im2bw(im,threshold);                                               %%Binary thresholding for black and white image
         bw = imfill(imcomplement(bw),'holes');
+    end
+    if (pop == 3)
+        im = wiener2(im,[15,15]);
+        im = mat2gray(im);
+        ed = edge(im,'canny',[],smooth);  
+        ed = imdilate(ed,se);
+        bw = ~im2bw(im,threshold);
+        bw = imfill(bw,'holes');    
+        bw = imerode(bw,se);
     end
     bw = imclearborder(bw);
     if (isempty(Size) == 1)
